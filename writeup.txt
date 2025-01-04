@@ -1,0 +1,20 @@
+Online store that
+
+allows customers to:
+ .view all available ooks
+  .search for specific books
+   .add products to cart
+    .make order
+     . remove product from cart
+      .add book to wish list
+       .cancell an order
+        .payfor an order
+         .trace delivey satatus
+
+
+ Admin to:
+  .add book
+   .delete book
+    see orders
+    . cancel orders
+     .see and cornfirm payments.
