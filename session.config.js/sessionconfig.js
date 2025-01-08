@@ -4,15 +4,15 @@ const MySQLStore = require("express-mysql-session")(session);
 const options = {
     host: "localhost",
     port: 3306,
-    user: "your-username", 
-    password: "your-password",
-    database: "sessionDB"
+    user: "root", 
+    password: "",
+    database: "bookstore"
 };
 
 const sessionStore = new MySQLStore(options);
 
 const sessionConfig = session({
-    secret: "your-secret-key", // Replace with a secure, random key
+    secret: "123254", // Replace with a secure, random key
     resave: false, // Avoid resaving unchanged sessions
     saveUninitialized: false, // Do not save empty sessions
     store: sessionStore,
