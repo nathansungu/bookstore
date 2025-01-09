@@ -50,8 +50,8 @@ email VARCHAR(50) NOT NULL,
 password VARCHAR(50),
 reg_date TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP)";
 
-$books = "CREATE TABLE Books 
-(id INT(6) UNSIGNED AUTO_INCREMENT PRIMARY KEY,
+$Books = "CREATE TABLE Books(
+id INT(6) UNSIGNED AUTO_INCREMENT PRIMARY KEY,
 title VARCHAR(20) NOT NULL,
 author_id INT(6) NOT NULL,
 publish_year YEAR,
@@ -59,12 +59,18 @@ price FLOAT(10) NOT NULL,
 stock INT(100) NOT NULL,
 reg_date TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP)";
 
-$authors = "CREATE TABLE Authors(
+$Authors = "CREATE TABLE Authors(
 id INT(6) UNSIGNED AUTO_INCREMENT PRIMARY KEY,
-firstname VARCHAR(30) NOT NULL,
-secondname VARCHAR(30) NOT NULL,
+first_name VARCHAR(30) NOT NULL,
+second_name VARCHAR(30) NOT NULL,
 bio VARCHAR(255))";
 
+$Order_items = "CREATE TABLE Order_items(
+id INT(6) UNSIGNED AUTO_INCREMENT PRIMARY KEY,
+book_id INT(6),
+price FLOAT(10),
+quantity INT(100))";
+    
 $Orders = "CREATE TABLE Orders (
 id INT(6) UNSIGNED AUTO_INCREMENT PRIMARY KEY,
 customer_id INT(6) NOT NULL,
@@ -74,30 +80,27 @@ status VARCHAR(20) NOT NULL,
 delivery_status VARCHAR(20),
 order_date TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP)";
 
-$Order_items = "CREATE TABLE Order_items(
-id INT(6) UNSIGNED AUTO_INCREMENT PRIMARY KEY,
-book_id INT(6),
-price FLOAT(100),
-quantity INT(100))";
-//declare foreign keys
-$conn->query("ALTER TABLE Books 
-    ADD CONSTRAINT fk_author_id 
-    FOREIGN KEY (author_id) REFERENCES Authors(id)");
-$conn->query("ALTER TABLE Orders 
-    ADD CONSTRAINT fk_customer_id 
-    FOREIGN KEY (customer_id) REFERENCES Customers(id)");
-$conn->query("ALTER TABLE Order_items 
-    ADD CONSTRAINT fk_book_id 
-    FOREIGN KEY (book_id) REFERENCES Books(id)");
-
 
 // Execute queries
 $conn->query($Customers);
 $conn->query($admin);
-$conn->query($books);
-$conn->query($authors);
-$conn->query($Orders);
+$conn->query($Authors);
+$conn->query($Books);
 $conn->query($Order_items);
+$conn->query($Orders);
+
+//declare foreign keys
+$conn->query("ALTER TABLE Books 
+    ADD CONSTRAINT fk_author_id 
+    FOREIGN KEY (author_id) REFERENCES Authors(id)");
+$conn->query("ALTER TABLE Order_items 
+ADD CONSTRAINT fk_book_id 
+FOREIGN KEY (book_id) REFERENCES Books(id)");
+
+$conn->query("ALTER TABLE Orders 
+    ADD CONSTRAINT fk_customer_id 
+    FOREIGN KEY (customer_id) REFERENCES Customers(id)");
+
 
 $conn->close();
 ?>

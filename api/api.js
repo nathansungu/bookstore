@@ -3,12 +3,21 @@ const bcrypt = require("bcrypt");
 const{message} =require("statuses");
 //import the session configfiles
 const sessionconfig = require("../session.config.js/sessionconfig")
+const express = require("express");
 const app = express();
 app.use(sessionconfig);
-const router =app.ROUTER();
+const router =express.Router();
+
+//initialize port number
+const port = process.env.PORT || 3000;
+//set the port usage
+app.listen(port, () => {
+    console.log(`Server running on port ${port}`);
+});
+
 
 //import models
-const {Customer,Admin,Books,Authors,Order, Order_items } =require("../models/model")
+const {Customer,Admin,Books,Authors,Orders, Order_items } =require("../models/model")
 
 //customer registration
 router.post("/register", async (req, res, next) => {
@@ -171,11 +180,11 @@ router.post('/product/addtocart', async(req, res)=>{
         if(!book) 
             return res.status(400).json({message:"Book not found"})
         //find or create a pending order for the user
-        let order = await Order.findOne({where:{customer_id: customer_id, status: 'pending'}});
+        let order = await Orders.findOne({where:{customer_id: customer_id, status: 'pending'}});
 
         if(!order){
             //create a new pending orderif non exist
-            await Order.create({customer_id:customer_id, total_amount: 0});
+            await Orders.create({customer_id:customer_id, total_amount: 0});
         }
         //check if the product is already in cart
         let order_book =await Order_items.findOne({where: {order_id: order.id, book_id}
@@ -192,8 +201,8 @@ router.post('/product/addtocart', async(req, res)=>{
         const total_amount = await Order_items.sum('price',{
             where: {order_id: order.id}
         });
-        Order.total_amount =total_amount;
-        await Order.save();
+        Orders.total_amount =total_amount;
+        await Orders.save();
 
         res.status(200).json({ message: 'product added to cart', order});
     } catch (error) {

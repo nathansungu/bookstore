@@ -1,18 +1,27 @@
 // Import required modules
-import express from "express";
-import { Sequelize, DataTypes, HasMany, BelongsTo } from "sequelize";
-import dotenv from "dotenv";
+const express = require("express");
+const { Sequelize, DataTypes, HasMany, BelongsTo } = require("sequelize");
+const dotenv =require("dotenv");
+const { charset } = require("mime-types");
 const app = express();
 
 dotenv.config();
 
 //middleware
 app.use(express.json());
+dotenv.config({ path: '../.env' });
 
 //database connection
-const sequelize = new Sequelize(process.env.DB_NAME, process.env.DB_USER, process.env.DB_PASS, {
-  host: process.env.DB_HOST,
+const sequelize = new Sequelize(process.env.DB_NAME, process.env.DB_USERNAME, process.env.DB_PASSWORD, {
+  host: process.env.DB_SERVERNAME,
   dialect: "mysql",
+  dialectOptions: {
+    charset: "utf8",
+  },
+  define: {
+    charset: "utf8",
+    xollate: "utf8_general_ci",
+  },
 });
 
 //sync database
@@ -38,9 +47,18 @@ app.use((err, res) => {
 const Customer = sequelize.define("Customer", {
   first_name: { type: DataTypes.STRING, allowNull: false },
   second_name: { type: DataTypes.STRING, allowNull: false },
-  email: { type: DataTypes.STRING, allowNull: false, unique: true },
+  email: { type: DataTypes.STRING, allowNull: false},
   phone_no: { type: DataTypes.STRING, allowNull: false },
   password: { type: DataTypes.STRING, allowNull: false }
+});
+// books model
+const Books = sequelize.define("Books", {
+  title: { type: DataTypes.STRING, allowNull: false },
+  author_id: { type: DataTypes.INTEGER, allowNull: false },
+  publish_year: { type: DataTypes.DATE, allowNull: false },
+  price: { type: DataTypes.FLOAT, allowNull: false },
+  stock: { type: DataTypes.INTEGER, allowNull: false },
+  reg_date: { type: DataTypes.DATE, allowNull: false }
 });
 
 // admin model
@@ -52,18 +70,10 @@ const Admin = sequelize.define("Admin_user", {
   password: { type: DataTypes.STRING, allowNull: false }
 });
 
-// books model
-const Books = sequelize.define("Books", {
-  title: { type: DataTypes.STRING, allowNull: false },
-  author_id: { type: DataTypes.INTEGER, allowNull: false },
-  publish_year: { type: DataTypes.DATE, allowNull: false },
-  price: { type: DataTypes.FLOAT, allowNull: false },
-  stock: { type: DataTypes.INTEGER, allowNull: false },
-});
 
 // authors model
 const Authors = sequelize.define("Authors", {
-  firstname: { type: DataTypes.STRING, allowNull: false },
+  first_name: { type: DataTypes.STRING, allowNull: false },
   second_name: { type: DataTypes.STRING, allowNull: false },
   bio: { type: DataTypes.STRING, allowNull: false }
 });
@@ -74,7 +84,7 @@ const Orders = sequelize.define("Orders", {
   order_items_id: { type: DataTypes.INTEGER, allowNull: false },
   total_amount: { type: DataTypes.FLOAT, allowNull: false },
   status: { type: DataTypes.STRING, allowNull: true },
-  delivery_status:{type :DataTypes.STRING,allowNull:false},
+  delivery_status:{type :DataTypes.STRING, allowNull:false},
   order_date: { type: DataTypes.DATE, allowNull: false }
 });
 
