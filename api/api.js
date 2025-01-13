@@ -1,4 +1,5 @@
 //import models file
+const Sequelize = require('sequelize');
 const bcrypt = require("bcrypt");
 const{message} =require("statuses");
 //import the session configfiles
@@ -6,24 +7,28 @@ const sessionconfig = require("../session.config.js/sessionconfig")
 const express = require("express");
 const app = express();
 app.use(sessionconfig);
+app.use(express.json());
+app.use(express.urlencoded({ extended: true }));
 const router =express.Router();
 
 //initialize port number
 const port = process.env.PORT || 3000;
 //set the port usage
+app.use(router);
+
 app.listen(port, () => {
     console.log(`Server running on port ${port}`);
 });
 
-
+// Models are already imported above
 //import models
-const {Customer,Admin,Books,Authors,Orders, Order_items } =require("../models/model")
+const {Customer,Admin,Books,Authors,Orders, Order_items } =require("../models/model");
 
 //customer registration
-router.post("/register", async (req, res, next) => {
+router.post("/register/customer", async (req, res, next) => {
     try {
-        const { first_name, second_name, email, password } = req.body;
-        if (!first_name || !second_name || !email || !password) {
+        const { first_name, second_name, email,phone_no, password } = req.body;
+        if (!first_name || !second_name || !email || !phone_no|| !password) {
             return res.status(400).json({ message: "All fields are required" });
         }
         const hashedPassword = await bcrypt.hash(password, 10);
@@ -31,6 +36,7 @@ router.post("/register", async (req, res, next) => {
             first_name: Sequelize.literal(`'${first_name.replace(/'/g, "''")}'`),
             second_name: Sequelize.literal(`'${second_name.replace(/'/g, "''")}'`),
             email: Sequelize.literal(`'${email.replace(/'/g, "''")}'`),
+            phone_no: Sequelize.literal(`'${phone_no.replace(/'/g, "''")}'`),
             password: hashedPassword
         });
 
@@ -57,7 +63,7 @@ router.post("/login", async (req, res, next) => {
 
         // Check if the user is a customer
         let user = await Customer.findOne({ 
-            where: { email: Sequelize.literal(`email = ${Sequelize.escape(email)}`) } 
+            where: { email: Sequelize.literal(`email = '${email.replace(/'/g, "''")}'`) } 
         });
 
         if (user && await bcrypt.compare(password, user.password)) {
@@ -66,7 +72,7 @@ router.post("/login", async (req, res, next) => {
                 name: user.first_name,
                 email: user.email,
                 role:"customer"
-            };
+            }
             return res.json({
                 message: "Login successful",
                 role: "customer",
@@ -76,7 +82,7 @@ router.post("/login", async (req, res, next) => {
 
         // Check if the user is an admin
         user = await Admin.findOne({ 
-            where: { email: Sequelize.literal(`email = ${Sequelize.escape(email)}`) } 
+            where: { email: Sequelize.literal(`email = '${email.replace(/'/g, "''")}'`) } 
         });
 
         if (user && await bcrypt.compare(password, user.password)) {
@@ -103,7 +109,7 @@ router.post("/login", async (req, res, next) => {
 //add a book
 router.post("/books/add", async (req, res, next)=>{
     try {
-        const{title, author_id,publish_year,price,stock}=req.body;
+        const{title, author_id,publish_year,price,stock,}=req.body;
         if (!title|| !author_id|| !publish_year|| !price|| !stock) {
             return res.status(400).json({message: "provide all the details"})
         }
@@ -116,17 +122,21 @@ router.post("/books/add", async (req, res, next)=>{
         next(error);
     }
 });
+
 //Get all books
-router.get("/books", async (res, next) => {
+router.get("/books", async (req, res, next) => {
     try {
         const books = await Books.findAll({
             attributes: ['title', 'price', 'stock'],
             include: [{
                 model: Authors,
-                attributes: ['first_name', 'last_name', 'bio']
+                attributes: ['first_name', 'second_name', 'bio']
             }]
         });
-        res.json(books);
+        if(!books) {
+            return res.status(404).json({message: 'No books found'});
+        }
+        return res.status(201).json({message: books});
     } catch (error) {
         next(error);
     }
@@ -140,14 +150,14 @@ router.put("/book/update", async(req,res) =>{
         if (!searchBook) {
             return res.status(400).send("Invalid book");
         }
-        searchBook.title =title;
+        searchBook.title = title;
         searchBook.author_id=author_id;
         searchBook.publish_year =publish_year;
         searchBook.price = price;
         searchBook.stock =stock;
 
         await searchBook.save();
-        return res.status(200).send("product update");
+        return res.status(200).send("product updated successfully");
     } catch (error) {
         console.error("Error updating product:", error);
         return res.status(500).send("Cannot update product at the moment");
@@ -173,50 +183,60 @@ router.delete("/book/delete", async(req, res) =>{
 });
 //add books to cart
 router.post('/product/addtocart', async(req, res)=>{
-    const{customer_id, book_id, quantity }=req.body;
+    const { customer_id, book_id, quantity } = req.body;
     try {
         //check if book id exists
-        const book = await Books.findByPk(book_id)
-        if(!book) 
-            return res.status(400).json({message:"Book not found"})
-        //find or create a pending order for the user
-        let order = await Orders.findOne({where:{customer_id: customer_id, status: 'pending'}});
-
-        if(!order){
-            //create a new pending orderif non exist
-            await Orders.create({customer_id:customer_id, total_amount: 0});
+        const book = await Books.findByPk(book_id);
+        if (!book){
+            return res.status(400).json({ message: "Book not found" });
         }
-        //check if the product is already in cart
-        let order_book =await Order_items.findOne({where: {order_id: order.id, book_id}
+         //find or create a pending order for the user
+         let order = await Orders.findOne({ where: { customer_id: customer_id, status: 'pending' } });
+        // Check if the product is already in the cart for the specific customer
+        let order_book = await Order_items.findOne({ 
+            where: {              
+            book_id,
+            '$Order.customer_id$': customer_id
+            },
+            include: [{
+            model: Orders,
+            attributes: ['customer_id']
+            }]
         });
-        //if product exist in the cart, update the quantity
+        //if product exists in the cart, update the quantity
         if (order_book) {
-            order_book.quantity+=quantity;
+            order_book.quantity += quantity;
             await order_book.save();            
-        }else{
-            //otherwise create a new order item
-            await Order_items.create({order_id: order.id, book_id,quantity, price: book.price});
+        } else {
+            // create a new order item
+            order_book = await Order_items.create({ id: order.id, book_id, quantity, price: book.price });    
         }
-        //recalcualte the total amount 
-        const total_amount = await Order_items.sum('price',{
-            where: {order_id: order.id}
-        });
-        Orders.total_amount =total_amount;
-        await Orders.save();
+       
+        if (!order) {
+            //create a new pending order if none exist
+            order = await Orders.create({ customer_id: customer_id, total_amount: 0,status: 'pending', delivery_status: 'pending' });
+        }
 
-        res.status(200).json({ message: 'product added to cart', order});
+        // Recalculate the total amount by multiplying the quantity with the price
+        const total_amount = await Order_items.sum(quantity * book.price, {
+            where: { order_id: order.id }
+        });
+        order.total_amount = total_amount;
+        order.order_items_id = order_book.id;
+        await order.save();
+
+        res.status(200).json({ message: 'Product added to cart', order });
     } catch (error) {
         console.error(error);
         res.status(500).send('Something went wrong');
-        
     }
 });
 //view cart items
 router.get('/cart', async (req, res) => {
     const { customer_id } = req.query;
-
+    if(!customer_id) return res.status(400).json({ message: 'Customer ID is required' });
     try {
-        const order = await Order.findOne({
+        const order = await Orders.findOne({
             where: { customer_id, status: 'pending' },
             include: [{
                 model: Order_items,
@@ -276,9 +296,8 @@ router.post('/place-order', async (req, res) => {
 //1. by admin
 router.post('/admin/cancel-order', async (req, res) => {
     const { order_id } = req.body;
-
+        const order = await Orders.findByPk(order_id);
     try {
-        const order = await Order.findByPk(order_id);
         if (!order) return res.status(404).json({ message: 'Order not found' });
 
         order.status = 'cancelled';
@@ -313,7 +332,7 @@ router.get('/order/status/:order_id', async (req, res) => {
     const { order_id } = req.params;
 
     try {
-        const order = await Order.findByPk(order_id);
+        const order = await Orders.findByPk(order_id);
         if (!order) return res.status(404).json({ message: 'Order not found' });
 
         res.status(200).json({ 
@@ -352,6 +371,29 @@ router.post('/admin/register', async (req, res, next) => {
         }
     }
 });
+// path to add authors
+router.post('/authors/add', async (req, res) => {
+    const { first_name, second_name, bio } = req.body;
+
+    try {
+        if (!first_name || !second_name || !bio) {
+            return res.status(400).json({ message: 'All fields are required' });
+                      
+        }
+         //check if the author already exists
+         const author = await Authors.findOne({ where: { first_name, second_name } });
+            if (author) {
+                return res.status(400).json({ message: 'Author already exists' });
+                
+            };
+            const newauthor = await Authors.create({ first_name, second_name, bio });
+                res.status(201).json({ message: 'Author added successfully', author: newauthor })
+    } catch (error) {
+        console.error(error);
+        res.status(500).send('Something went wrong');
+    }
+});
+
 
 //export routers
 module.exports=router;
