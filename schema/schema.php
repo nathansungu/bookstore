@@ -66,7 +66,7 @@ second_name VARCHAR(30) NOT NULL,
 bio VARCHAR(255))";
 
 $Order_items = "CREATE TABLE Order_items(
-id INT(6) UNSIGNED AUTO_INCREMENT PRIMARY KEY,
+id INT(6) UNSIGNED  PRIMARY KEY,
 book_id INT(6),
 price FLOAT(10),
 quantity INT(100))";
@@ -77,8 +77,8 @@ customer_id INT(6) NOT NULL,
 order_items_id INT(6),
 total_amount FLOAT(6) NOT NULL,
 status VARCHAR(20) NOT NULL,
-delivery_status VARCHAR(20),
-order_date TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP)";
+delivery_status VARCHAR(20)
+);
 
 
 // Execute queries
@@ -89,17 +89,17 @@ $conn->query($Books);
 $conn->query($Order_items);
 $conn->query($Orders);
 
-//declare foreign keys
+//declare fks
 $conn->query("ALTER TABLE Books 
     ADD CONSTRAINT fk_author_id 
-    FOREIGN KEY (author_id) REFERENCES Authors(id)");
+    FOREIGN KEY (author_id) REFERENCES Authors(id);");
 $conn->query("ALTER TABLE Order_items 
 ADD CONSTRAINT fk_book_id 
-FOREIGN KEY (book_id) REFERENCES Books(id)");
+FOREIGN KEY (book_id) REFERENCES Books(id);");
 
 $conn->query("ALTER TABLE Orders 
     ADD CONSTRAINT fk_customer_id 
-    FOREIGN KEY (customer_id) REFERENCES Customers(id)");
+    FOREIGN KEY (customer_id) REFERENCES Customers(id);");
 
 
 $conn->close();

@@ -20,11 +20,20 @@ const sequelize = new Sequelize(process.env.DB_NAME, process.env.DB_USERNAME, pr
   },
   define: {
     charset: "utf8",
-    xollate: "utf8_general_ci",
+    collate: "utf8_general_ci",
+    engine: "InnoDB",
   },
 });
 
-//sync database
+// Set database attributes to unsigned
+Object.keys(sequelize.models).forEach(modelName => {
+  const attributes = sequelize.models[modelName].rawAttributes;
+  Object.keys(attributes).forEach(attributeName => {
+    if (attributes[attributeName].type instanceof DataTypes.INTEGER) {
+      attributes[attributeName].type = DataTypes.INTEGER.UNSIGNED;
+    }
+  });
+});
 (async () => {
   try {
     await sequelize.authenticate();
@@ -58,11 +67,10 @@ const Books = sequelize.define("Books", {
   publish_year: { type: DataTypes.DATE, allowNull: false },
   price: { type: DataTypes.FLOAT, allowNull: false },
   stock: { type: DataTypes.INTEGER, allowNull: false },
-  reg_date: { type: DataTypes.DATE, allowNull: false }
 });
 
 // admin model
-const Admin = sequelize.define("Admin_user", {
+const Admin = sequelize.define("Admin_users", {
   first_name: { type: DataTypes.STRING, allowNull: false },
   second_name: { type: DataTypes.STRING, allowNull: false },
   phone_no: { type: DataTypes.STRING, allowNull: false },
@@ -81,16 +89,15 @@ const Authors = sequelize.define("Authors", {
 // orders model
 const Orders = sequelize.define("Orders", {
   customer_id: { type: DataTypes.INTEGER, allowNull: false },
-  order_items_id: { type: DataTypes.INTEGER, allowNull: false },
+  order_items_id: { type: DataTypes.INTEGER, allowNull: true },
   total_amount: { type: DataTypes.FLOAT, allowNull: false },
   status: { type: DataTypes.STRING, allowNull: true },
-  delivery_status:{type :DataTypes.STRING, allowNull:false},
-  order_date: { type: DataTypes.DATE, allowNull: false }
+  delivery_status:{type :DataTypes.STRING, allowNull:false}
 });
 
 // order_items model
 const Order_items = sequelize.define("Order_items", {
-  book_id: { type: DataTypes.STRING, allowNull: false },
+  book_id: { type: DataTypes.INTEGER, allowNull: false },
   price: { type: DataTypes.FLOAT, allowNull: false },
   quantity: { type: DataTypes.INTEGER, allowNull: false }
 });
@@ -102,8 +109,7 @@ Orders.belongsTo(Customer, { foreignKey: 'customer_id' });
 Books.belongsTo(Authors, { foreignKey: 'author_id' });
 Authors.hasMany(Books, { foreignKey: 'author_id' });
 
-Orders.hasMany(Order_items, { foreignKey: 'order_items_id' });
-Order_items.belongsTo(Orders, { foreignKey: 'order_items_id' });
+Orders.belongsTo(Order_items, { foreignKey: 'order_items_id' });
 
 Order_items.belongsTo(Books, { foreignKey: 'book_id' });
 Books.hasMany(Order_items, { foreignKey: 'book_id' });

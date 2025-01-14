@@ -201,6 +201,8 @@ router.post('/product/addtocart', async(req, res)=>{
             } 
         } else {
             //create a new pending order if none exist
+            //
+            //
             order = await Orders.create({ customer_id: customer_id, total_amount: 0, status: 'pending', delivery_status: 'pending' });
             await Order_items.create({id: order.id, book_id, quantity, price: book.price });
         }
@@ -208,6 +210,7 @@ router.post('/product/addtocart', async(req, res)=>{
         // Recalculate the total amount by multiplying the quantity with the price
         const itemsquantity = await Order_items.sum('quantity', {
             where: { id: order.id }
+
         });
         const total_amount = itemsquantity * book.price;
         order.total_amount = total_amount;
