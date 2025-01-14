@@ -190,39 +190,28 @@ router.post('/product/addtocart', async(req, res)=>{
         if (!book){
             return res.status(400).json({ message: "Book not found" });
         }
-         //find or create a pending order for the user
-         let order = await Orders.findOne({ where: { customer_id: customer_id, status: 'pending' } });
-        // Check if the product is already in the cart for the specific customer
-        let order_book = await Order_items.findOne({ 
-            where: {              
-            book_id,
-            '$Order.customer_id$': customer_id
-            },
-            include: [{
-            model: Orders,
-            attributes: ['customer_id']
-            }]
-        });
-        //if product exists in the cart, update the quantity
-        if (order_book) {
-            order_book.quantity += quantity;
-            await order_book.save();            
+        //find or create a pending order for the user
+        let order = await Orders.findOne({ where: { customer_id: customer_id, status: 'pending' } });
+        if (order) {
+            //check items table for the same item update the quantity
+            let samebook = await Order_items.findOne({ where: { book_id: book_id, id: order.id } });
+            if (samebook) {
+            samebook.quantity += quantity;
+            await samebook.save();
+            } 
         } else {
-            // create a new order item
-            order_book = await Order_items.create({ id: order.id, book_id, quantity, price: book.price });    
+            //create a new pending order if none exist
+            order = await Orders.create({ customer_id: customer_id, total_amount: 0, status: 'pending', delivery_status: 'pending' });
+            await Order_items.create({id: order.id, book_id, quantity, price: book.price });
         }
        
-        if (!order) {
-            //create a new pending order if none exist
-            order = await Orders.create({ customer_id: customer_id, total_amount: 0,status: 'pending', delivery_status: 'pending' });
-        }
-
         // Recalculate the total amount by multiplying the quantity with the price
-        const total_amount = await Order_items.sum(quantity * book.price, {
-            where: { order_id: order.id }
+        const itemsquantity = await Order_items.sum('quantity', {
+            where: { id: order.id }
         });
+        const total_amount = itemsquantity * book.price;
         order.total_amount = total_amount;
-        order.order_items_id = order_book.id;
+        order.order_items_id = order.id;
         await order.save();
 
         res.status(200).json({ message: 'Product added to cart', order });
@@ -233,15 +222,35 @@ router.post('/product/addtocart', async(req, res)=>{
 });
 //view cart items
 router.get('/cart', async (req, res) => {
-    const { customer_id } = req.query;
-    if(!customer_id) return res.status(400).json({ message: 'Customer ID is required' });
+    const {customer_id}=req.body;
+    if (!customer_id) {
+        return res.status(400).json({ message: 'Valid customer ID is required' });
+    }
     try {
-        const order = await Orders.findOne({
+        const order = await Orders.findAll({
             where: { customer_id, status: 'pending' },
-            include: [{
-                model: Order_items,
-                include: [Books]
-            }]
+            attributes: ['id', 'total_amount', 'status'],
+            include: [
+                {
+                    model: Order_items,
+                    as: 'order_items', 
+                    attributes: ['price', 'quantity'],
+                    include: [
+                        {
+                            model: Books,
+                            as: 'book', 
+                            attributes: ['id', 'title'],
+                            include: [
+                                {
+                                    model: Authors,
+                                    as: 'author',
+                                    attributes: ['id', 'first_name', 'second_name', 'bio'],
+                                },
+                            ],
+                        },
+                    ],
+                },
+            ],
         });
 
         if (!order) return res.status(404).json({ message: 'No items in the cart' });
@@ -259,7 +268,7 @@ router.post('/place-order', async (req, res) => {
   
     try {
       // Find the pending order for the user
-      const order = await Order.findOne({
+      const order = await Orders.findOne({
         where: {
           customerId: userId,
           status: 'pending'
@@ -315,7 +324,7 @@ router.post('/customer/cancel-order', async (req, res) => {
     const { order_id, customer_id } = req.body;
 
     try {
-        const order = await Order.findOne({ where: { id: order_id, customer_id: customer_id } });
+        const order = await Orders.findOne({ where: { id: order_id, customer_id: customer_id } });
         if (!order) return res.status(404).json({ message: 'Order not found' });
 
         order.status = 'cancelled';
@@ -347,8 +356,8 @@ router.get('/order/status/:order_id', async (req, res) => {
 //path to create new admin
 router.post('/admin/register', async (req, res, next) => {
     try {
-        const { first_name, second_name, email, password } = req.body;
-        if (!first_name || !second_name || !email || !password) {
+        const { first_name, second_name, email,phone_no, password } = req.body;
+        if (!first_name || !second_name || !email || !phone_no || !password) {
             return res.status(400).json({ message: "All fields are required" });
         }
         const hashedPassword = await bcrypt.hash(password, 10);
@@ -356,6 +365,7 @@ router.post('/admin/register', async (req, res, next) => {
             first_name: Sequelize.literal(`'${first_name.replace(/'/g, "''")}'`),
             second_name: Sequelize.literal(`'${second_name.replace(/'/g, "''")}'`),
             email: Sequelize.literal(`'${email.replace(/'/g, "''")}'`),
+            phone_no: Sequelize.literal(`'${phone_no.replace(/'/g, "''")}'`),
             password: hashedPassword
         });
 
@@ -369,6 +379,18 @@ router.post('/admin/register', async (req, res, next) => {
         } else {
             next(error);
         }
+    }
+});
+// view all admins
+router.get('/admins', async ( req,res) => {
+    try {
+        const admins = await Admin.findAll();
+        if (!admins) return res.status(404).json({ message: 'No admins found' });
+
+        res.status(200).json({ admins });
+    } catch (error) {
+        console.error(error);
+        res.status(500).send('Something went wrong');
     }
 });
 // path to add authors
@@ -388,6 +410,18 @@ router.post('/authors/add', async (req, res) => {
             };
             const newauthor = await Authors.create({ first_name, second_name, bio });
                 res.status(201).json({ message: 'Author added successfully', author: newauthor })
+    } catch (error) {
+        console.error(error);
+        res.status(500).send('Something went wrong');
+    }
+});
+//get all authors
+router.get('/authors', async (req, res) => {
+    try {
+        const authors = await Authors.findAll();
+        if (!authors) return res.status(404).json({ message: 'No authors found' });
+
+        res.status(200).json({ authors });
     } catch (error) {
         console.error(error);
         res.status(500).send('Something went wrong');
