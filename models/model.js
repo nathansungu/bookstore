@@ -1,8 +1,9 @@
 // Import required modules
 const express = require("express");
-const { Sequelize, DataTypes, HasMany, BelongsTo } = require("sequelize");
+const { Sequelize, DataTypes, HasMany, BelongsTo, or } = require("sequelize");
 const dotenv =require("dotenv");
 const { charset } = require("mime-types");
+const { orderBy } = require("lodash");
 const app = express();
 
 dotenv.config();
@@ -89,7 +90,6 @@ const Authors = sequelize.define("Authors", {
 // orders model
 const Orders = sequelize.define("Orders", {
   customer_id: { type: DataTypes.INTEGER, allowNull: false },
-  order_items_id: { type: DataTypes.INTEGER, allowNull: true },
   total_amount: { type: DataTypes.FLOAT, allowNull: false },
   status: { type: DataTypes.STRING, allowNull: true },
   delivery_status:{type :DataTypes.STRING, allowNull:false}
@@ -97,6 +97,7 @@ const Orders = sequelize.define("Orders", {
 
 // order_items model
 const Order_items = sequelize.define("Order_items", {
+  order_id: {type:DataTypes.INTEGER, allowNull:false} ,
   book_id: { type: DataTypes.INTEGER, allowNull: false },
   price: { type: DataTypes.FLOAT, allowNull: false },
   quantity: { type: DataTypes.INTEGER, allowNull: false }
@@ -109,7 +110,8 @@ Orders.belongsTo(Customer, { foreignKey: 'customer_id' });
 Books.belongsTo(Authors, { foreignKey: 'author_id' });
 Authors.hasMany(Books, { foreignKey: 'author_id' });
 
-Orders.belongsTo(Order_items, { foreignKey: 'order_items_id' });
+Order_items.belongsTo(Orders, { foreignKey: 'order_id' });
+Orders.hasMany(Order_items, { foreignkey: 'order_id'});
 
 Order_items.belongsTo(Books, { foreignKey: 'book_id' });
 Books.hasMany(Order_items, { foreignKey: 'book_id' });

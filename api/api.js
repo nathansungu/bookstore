@@ -202,7 +202,6 @@ router.post('/product/addtocart', async(req, res)=>{
         } else {
             //create a new pending order if none exist
             //
-            //
             order = await Orders.create({ customer_id: customer_id, total_amount: 0, status: 'pending', delivery_status: 'pending' });
             await Order_items.create({id: order.id, book_id, quantity, price: book.price });
         }

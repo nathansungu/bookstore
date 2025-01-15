@@ -67,6 +67,7 @@ bio VARCHAR(255))";
 
 $Order_items = "CREATE TABLE Order_items(
 id INT(6) UNSIGNED  PRIMARY KEY,
+order_id INT (6),
 book_id INT(6),
 price FLOAT(10),
 quantity INT(100))";
@@ -74,7 +75,6 @@ quantity INT(100))";
 $Orders = "CREATE TABLE Orders (
 id INT(6) UNSIGNED AUTO_INCREMENT PRIMARY KEY,
 customer_id INT(6) NOT NULL,
-order_items_id INT(6),
 total_amount FLOAT(6) NOT NULL,
 status VARCHAR(20) NOT NULL,
 delivery_status VARCHAR(20)
