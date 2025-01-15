@@ -66,7 +66,7 @@ second_name VARCHAR(30) NOT NULL,
 bio VARCHAR(255))";
 
 $Order_items = "CREATE TABLE Order_items(
-id INT(6) UNSIGNED  PRIMARY KEY,
+id INT(6) UNSIGNED  AUTO_INCREMENT PRIMARY KEY,
 order_id INT (6),
 book_id INT(6),
 price FLOAT(10),

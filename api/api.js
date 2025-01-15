@@ -198,22 +198,22 @@ router.post('/product/addtocart', async(req, res)=>{
             if (samebook) {
             samebook.quantity += quantity;
             await samebook.save();
-            } 
+            } else{
+                // create a new order item if the book is not in the cart
+                await Order_items.create({ OrderId: order.id, book_id, quantity, price: book.price});
+            }
         } else {
             //create a new pending order if none exist
             //
             order = await Orders.create({ customer_id: customer_id, total_amount: 0, status: 'pending', delivery_status: 'pending' });
-            await Order_items.create({id: order.id, book_id, quantity, price: book.price });
+            await Order_items.create({OrderId: order.id, book_id, quantity, price: book.price });
         }
        
         // Recalculate the total amount by multiplying the quantity with the price
-        const itemsquantity = await Order_items.sum('quantity', {
-            where: { id: order.id }
-
-        });
-        const total_amount = itemsquantity * book.price;
+        const itemsquantity = await Order_items.findOne({where: { order_id: order.id}});
+        
+        const total_amount = itemsquantity.quantity * book.price;
         order.total_amount = total_amount;
-        order.order_items_id = order.id;
         await order.save();
 
         res.status(200).json({ message: 'Product added to cart', order });
@@ -233,25 +233,22 @@ router.get('/cart', async (req, res) => {
             where: { customer_id, status: 'pending' },
             attributes: ['id', 'total_amount', 'status'],
             include: [
+            {
+                model: Order_items,
+                attributes: ['id', 'order_id','price', 'quantity'],
+                include: [
                 {
-                    model: Order_items,
-                    as: 'order_items', 
-                    attributes: ['price', 'quantity'],
+                    model: Books,
+                    attributes: ['id', 'title'],
                     include: [
-                        {
-                            model: Books,
-                            as: 'book', 
-                            attributes: ['id', 'title'],
-                            include: [
-                                {
-                                    model: Authors,
-                                    as: 'author',
-                                    attributes: ['id', 'first_name', 'second_name', 'bio'],
-                                },
-                            ],
-                        },
+                    {
+                        model: Authors,
+                        attributes: ['id', 'first_name', 'second_name', 'bio'],
+                    },
                     ],
                 },
+                ],
+            },
             ],
         });
 
@@ -265,23 +262,36 @@ router.get('/cart', async (req, res) => {
 });
 //make order path
 // Place the order (complete the order)
-router.post('/place-order', async (req, res) => {
-    const { userId } = req.body;
+router.post('/placeorder', async (req, res) => {
+    const {customer_id} = req.body;
   
     try {
       // Find the pending order for the user
-      const order = await Orders.findOne({
-        where: {
-          customerId: userId,
-          status: 'pending'
+    const order = await Orders.findOne({
+      where: {
+        customer_id: customer_id,
+        status: 'pending'
+      },
+      include: [
+        {
+        model: Order_items,
+        include: [
+          {
+            model: Books,
+            attributes: ['id', 'title', 'price', 'stock'],
+            include: [
+            {
+              model: Authors,
+              attributes: ['id', 'first_name', 'second_name', 'bio'],
+            },
+            ],
+          },
+        ],
         },
-        include: [{
-          model: Order_items,
-          include: [Books]  // Include books details for each order item
-        }]
-      });
+      ],
+    });
   
-      if (!order) return res.status(404).send('No pending order found');
+      if (!order) return res.status(404).send('No items in your cart. Add to cart to order');
   
       // Change order status to completed
       order.status = 'completed';
@@ -291,8 +301,8 @@ router.post('/place-order', async (req, res) => {
       for (const item of order.Order_items) {
         const stock = await Books.findByPk(item.book_id);
         if (stock) {
-          Books.stock -= item.stock;
-          await Books.save();
+          stock.stock -= item.quantity;
+          await stock.save();
         }
       }
   
@@ -307,8 +317,9 @@ router.post('/place-order', async (req, res) => {
 //1. by admin
 router.post('/admin/cancel-order', async (req, res) => {
     const { order_id } = req.body;
-        const order = await Orders.findByPk(order_id);
+        
     try {
+        const order = await Orders.findByPk(order_id);
         if (!order) return res.status(404).json({ message: 'Order not found' });
 
         order.status = 'cancelled';
@@ -323,10 +334,10 @@ router.post('/admin/cancel-order', async (req, res) => {
 
 //2. by customer
 router.post('/customer/cancel-order', async (req, res) => {
-    const { order_id, customer_id } = req.body;
+    const { id, customer_id } = req.body;
 
     try {
-        const order = await Orders.findOne({ where: { id: order_id, customer_id: customer_id } });
+        const order = await Orders.findOne({ where: { id: id, customer_id: customer_id } });
         if (!order) return res.status(404).json({ message: 'Order not found' });
 
         order.status = 'cancelled';
@@ -339,16 +350,16 @@ router.post('/customer/cancel-order', async (req, res) => {
     }
 });
 //check status
-router.get('/order/status/:order_id', async (req, res) => {
-    const { order_id } = req.params;
+router.get('/order/delivery_status', async (req, res) => {
+    const { id , customer_id } = req.body;
 
     try {
-        const order = await Orders.findByPk(order_id);
+        const order = await Orders.findOne({ where: { id: id, customer_id: customer_id } });
         if (!order) return res.status(404).json({ message: 'Order not found' });
 
         res.status(200).json({ 
             message: 'Order status retrieved successfully', 
-            status: order.deliery_status 
+            status: order.delivery_status 
         });
     } catch (error) {
         console.error(error);
