@@ -367,6 +367,8 @@ router.get('/order/delivery_status', async (req, res) => {
     }
 });
 //path to create new admin
+//
+//
 router.post('/admin/register', async (req, res, next) => {
     try {
         const { first_name, second_name, email,phone_no, password } = req.body;
