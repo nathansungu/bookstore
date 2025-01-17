@@ -334,10 +334,13 @@ router.post('/admin/cancel-order', async (req, res) => {
 
 //2. by customer
 router.post('/customer/cancel-order', async (req, res) => {
-    const { id, customer_id } = req.body;
+    const { orderid, customer_id } = req.body;
+    if (!orderid || !customer_id) {
+        return res.status(400).json({ message: 'Order ID and customer ID are required' });
+    }
 
     try {
-        const order = await Orders.findOne({ where: { id: id, customer_id: customer_id } });
+        const order = await Orders.findOne({ where: { id: orderid, customer_id: customer_id } });
         if (!order) return res.status(404).json({ message: 'Order not found' });
 
         order.status = 'cancelled';
@@ -349,12 +352,33 @@ router.post('/customer/cancel-order', async (req, res) => {
         res.status(500).send('Something went wrong');
     }
 });
-//check status
-router.get('/order/delivery_status', async (req, res) => {
-    const { id , customer_id } = req.body;
+//update delivery status by id
+router.put('/order/update_delivery_status', async (req, res) => {
+    const { orderid, delivery_status } = req.body;
+    if (!orderid || !delivery_status) {
+        return res.status(400).json({ message: 'Order ID and delivery status are required' });
+    }
 
     try {
-        const order = await Orders.findOne({ where: { id: id, customer_id: customer_id } });
+        const order = await Orders.findByPk(orderid);
+        if (!order) return res.status(404).json({ message: 'Order not found' });
+
+        order.delivery_status = delivery_status;
+        await order.save();
+
+        res.status(200).json({ message: 'Delivery status updated successfully', order });
+    } catch (error) {
+        console.error(error);
+        res.status(500).send('Something went wrong');
+    }
+});
+
+//check delivery status
+router.get('/order/delivery_status', async (req, res) => {
+    const {orderid , customer_id } = req.body;
+
+    try {
+        const order = await Orders.findOne({ where: { id: orderid, customer_id: customer_id } });
         if (!order) return res.status(404).json({ message: 'Order not found' });
 
         res.status(200).json({ 
