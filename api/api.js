@@ -105,6 +105,36 @@ router.post("/login", async (req, res, next) => {
         next(error);
     }
 });
+// forgot password
+router.post("/forgot-password", async (req, res, next) => {
+    try {
+        const { email } = req.body;
+        if (!email) {
+            return res.status(400).json({ message: "Email is required" });
+        }
+
+        // Check if the user is a customer
+        let user = await Customer.findOne({ where: { email: email} });
+        if (user) {
+            return res.json({ message: "Password reset link sent to your email" });
+        }
+
+        // Check if the user is an admin
+        user = await Admin.findOne({ where: { email: email } });
+        if (user) {
+            // send password reset link to the email
+            const resetLink = `http://example.com/reset-password?email=${encodeURIComponent(email)}`;
+            // Here you would typically send the reset link via email using a service like nodemailer
+            console.log(`Password reset link: ${resetLink}`);
+            
+            return res.json({ message: "Password reset link sent to your email" });
+        }
+
+        return res.status(404).json({ message: "User not found" });
+    } catch (error) {
+        next(error);
+    }
+});
 
 //add a book
 router.post("/books/add", async (req, res, next)=>{
