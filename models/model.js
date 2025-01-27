@@ -57,8 +57,8 @@ app.use((err, res) => {
 const Customer = sequelize.define("Customer", {
   first_name: { type: DataTypes.STRING, allowNull: false },
   second_name: { type: DataTypes.STRING, allowNull: false },
-  email: { type: DataTypes.STRING, allowNull: false},
-  phone_no: { type: DataTypes.STRING, allowNull: false },
+  email: { type: DataTypes.STRING, allowNull: false, unique:true},
+  phone_no: { type: DataTypes.STRING, allowNull: false,unique:true},
   password: { type: DataTypes.STRING, allowNull: false }
 });
 // books model
@@ -74,8 +74,8 @@ const Books = sequelize.define("Books", {
 const Admin = sequelize.define("Admin_users", {
   first_name: { type: DataTypes.STRING, allowNull: false },
   second_name: { type: DataTypes.STRING, allowNull: false },
-  phone_no: { type: DataTypes.STRING, allowNull: false },
-  email: { type: DataTypes.STRING, allowNull: false },
+  phone_no: { type: DataTypes.STRING, allowNull: false, unique:true },
+  email: { type: DataTypes.STRING, allowNull: false, unique:true },
   password: { type: DataTypes.STRING, allowNull: false }
 });
 
